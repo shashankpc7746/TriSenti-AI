@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { TrendingUp, ChevronDown } from 'lucide-react';
+import { TrendingUp, ChevronDown, Brain, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import type { ModelEngine } from '../App';
 
 interface SentimentResultProps {
   sentiment: {
@@ -11,11 +12,12 @@ interface SentimentResultProps {
       audio: { emotion: string; score: number };
       text: { emotion: string; score: number };
     };
-    transcript?: string; // Add transcript support
+    transcript?: string;
   };
+  engine?: ModelEngine;
 }
 
-export function SentimentResult({ sentiment }: SentimentResultProps) {
+export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   const getEmoji = (label: string) => {
@@ -41,6 +43,8 @@ export function SentimentResult({ sentiment }: SentimentResultProps) {
     }
     return 'from-gray-500 to-gray-600';
   };
+
+  const isHF = engine === 'hf';
 
   return (
     <motion.div
@@ -74,11 +78,28 @@ export function SentimentResult({ sentiment }: SentimentResultProps) {
           
           <TrendingUp className="w-10 h-10 sm:w-12 sm:h-12 text-white/50" />
         </div>
+
+        {/* Engine Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-4"
+        >
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${
+            isHF
+              ? 'bg-amber-500/25 text-amber-100 border border-amber-400/30'
+              : 'bg-blue-500/25 text-blue-100 border border-blue-400/30'
+          }`}>
+            {isHF ? <Zap className="w-3.5 h-3.5" /> : <Brain className="w-3.5 h-3.5" />}
+            {isHF ? 'RoBERTa (HuggingFace)' : 'TriSenti Custom Model'}
+          </span>
+        </motion.div>
       </div>
 
-      {/* Confidence Meter */}
+      {/* Body */}
       <div className="p-4 sm:p-6">
-        {/* Transcript Section for Video/Audio - Moved to top for prominence */}
+        {/* Transcript Section */}
         {sentiment.transcript && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -87,7 +108,7 @@ export function SentimentResult({ sentiment }: SentimentResultProps) {
             className="mb-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4"
           >
             <h4 className="font-semibold text-base sm:text-lg text-white mb-3 flex items-center gap-2">
-              <span>💬</span> Extracted Text from Video
+              <span>💬</span> Extracted Transcript
             </h4>
             <div className="bg-black/30 rounded-lg p-4 text-sm sm:text-base text-gray-200 leading-relaxed italic border border-white/10">
               "{sentiment.transcript}"
@@ -95,6 +116,7 @@ export function SentimentResult({ sentiment }: SentimentResultProps) {
           </motion.div>
         )}
 
+        {/* Confidence Meter */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-gray-300">Overall Confidence</span>
@@ -114,7 +136,7 @@ export function SentimentResult({ sentiment }: SentimentResultProps) {
         {/* Multimodal Breakdown */}
         <div className="space-y-4">
           <h3 className="font-semibold text-base sm:text-lg flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 text-white">
-            <span>Multimodal Analysis</span>
+            <span>{isHF ? 'Text-Based Analysis' : 'Multimodal Analysis'}</span>
             <span className="text-xs sm:text-sm text-gray-400 font-normal">(Individual Scores)</span>
           </h3>
           
@@ -187,11 +209,23 @@ export function SentimentResult({ sentiment }: SentimentResultProps) {
               transition={{ duration: 0.3 }}
               className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl space-y-2 text-sm text-gray-400"
             >
-              <p><strong className="text-gray-300">Model:</strong> Multimodal Fusion Network (MFN)</p>
-              <p><strong className="text-gray-300">Architecture:</strong> CNN + LSTM + BERT</p>
-              <p><strong className="text-gray-300">Processing Time:</strong> 14.2 seconds</p>
-              <p><strong className="text-gray-300">Frame Rate:</strong> 30 fps analyzed</p>
-              <p><strong className="text-gray-300">Audio Sample Rate:</strong> 16 kHz</p>
+              {isHF ? (
+                <>
+                  <p><strong className="text-gray-300">Engine:</strong> HuggingFace Transformers</p>
+                  <p><strong className="text-gray-300">Model:</strong> cardiffnlp/twitter-roberta-base-sentiment-latest</p>
+                  <p><strong className="text-gray-300">Architecture:</strong> RoBERTa (Robustly Optimized BERT)</p>
+                  <p><strong className="text-gray-300">Training Data:</strong> ~124M tweets</p>
+                  <p><strong className="text-gray-300">Approach:</strong> Text classification via transcribed speech</p>
+                </>
+              ) : (
+                <>
+                  <p><strong className="text-gray-300">Engine:</strong> TriSenti Custom Model</p>
+                  <p><strong className="text-gray-300">Model:</strong> Multimodal Early Fusion Network</p>
+                  <p><strong className="text-gray-300">Architecture:</strong> ResNet18 (Video) + MFCC (Audio) + DistilBERT (Text)</p>
+                  <p><strong className="text-gray-300">Training Data:</strong> CMU-MOSI Dataset (400 clips)</p>
+                  <p><strong className="text-gray-300">Audio Sample Rate:</strong> 16 kHz</p>
+                </>
+              )}
               {sentiment.transcript && (
                 <p><strong className="text-gray-300">Transcript Length:</strong> {sentiment.transcript.split(' ').length} words</p>
               )}
