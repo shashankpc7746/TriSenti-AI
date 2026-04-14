@@ -34,38 +34,35 @@ npm run dev
 
 ### 3. Open in Browser
 
-- Frontend: http://localhost:3001 (or http://localhost:5173)
+- Frontend: http://localhost:3000
 - Backend API Docs: http://localhost:8000/docs
 
 ## 🔧 What Changed
 
-### Backend (NEW!)
+### Backend — Dual Engine
 
-- **Created**: `api/main.py` - FastAPI server with two endpoints:
-  - `POST /api/analyze` - Analyzes video/audio files
-  - `POST /api/analyze-text` - Analyzes text input
-- **Features**:
-  - Real video feature extraction
-  - Real audio transcription (Google Speech Recognition)
-  - Real sentiment prediction using your trained models
-  - CORS enabled for React frontend
+- `api/main.py` — FastAPI server with **three** endpoints:
+  - `POST /api/analyze` — Custom fusion model (video + audio + text)
+  - `POST /api/analyze-hf` — HuggingFace RoBERTa (transcribe → classify)
+  - `POST /api/analyze-text?model_engine=custom|hf` — Text-only, both engines
+- Loads two models on startup: TensorFlow custom model + HuggingFace pipeline
+- CORS enabled for React frontend
 
-### Frontend (UPDATED!)
+### Frontend — Model Selector UI
 
-- **Modified**: `frontend/src/App.tsx`
-  - Replaced mock `simulateAnalysis()` with real `analyzeWithBackend()`
-  - Sends files to backend API via FormData
-  - Displays real transcripts from actual speech recognition
-  - Shows real sentiment predictions from ML models
+- `MultimodalInput.tsx` — "Choose Analysis Engine" card selector
+- `SentimentResult.tsx` — Engine badge showing which model produced the result
+- `App.tsx` — Routes to correct backend endpoint based on selection
 
-## 🎯 What You'll Get Now
+## 🎯 What You'll Get
 
-When you upload a video:
+When you upload content:
 
-1. **Real transcription** from the actual audio (via Google Speech Recognition)
-2. **Real sentiment** from your trained multimodal model
-3. **Real confidence scores** based on model predictions
-4. **Multimodal breakdown** showing video/audio/text contributions
+1. **Choose your engine** — Custom Model or HuggingFace RoBERTa
+2. **Real transcription** from actual audio (Google Speech Recognition)
+3. **Real sentiment prediction** with confidence scores
+4. **Engine badge** showing which model produced the result
+5. **Multimodal breakdown** showing video/audio/text contributions
 
 ## 📝 API Endpoints
 
@@ -95,12 +92,19 @@ Analyzes video/audio files
 }
 ```
 
+### POST /api/analyze-hf
+
+Analyzes video/audio using HuggingFace RoBERTa (transcribes then classifies).
+
+**Request**: `multipart/form-data` with file  
+**Response**: Same format, `"engine": "huggingface"`
+
 ### POST /api/analyze-text
 
-Analyzes text input
+Analyzes text input with either engine.
 
-**Query Param**: `text=<your text here>`
-**Response**: Same as above
+**Query Params**: `text=<text>` and `model_engine=custom|hf`  
+**Response**: Same format
 
 ## ✅ Dependencies Installed
 
@@ -132,9 +136,7 @@ python-multipart==0.0.20
 
 ## 🎬 Ready to Test!
 
-1. Upload a video with someone speaking
-2. Watch real-time progress (4 steps)
-3. See actual transcribed text
-4. Get real sentiment analysis!
-
-The lady in your video now have her actual words transcribed! 🎤
+1. Upload a video, audio file, or type text
+2. Select your analysis engine (Custom Model or RoBERTa)
+3. Watch real-time progress
+4. See transcription + sentiment result with engine badge
