@@ -8,6 +8,12 @@ import sys
 import os
 from pathlib import Path
 
+# Fix Windows console encoding (cp1252 can't handle emoji)
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 # Add project root to Python path
 api_dir = Path(__file__).parent
 project_root = api_dir.parent
