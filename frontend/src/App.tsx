@@ -115,7 +115,7 @@ export default function App() {
         ...analysis,
         status: 'completed',
         currentStep: 5,
-        engine: (result.engine as ModelEngine) || engine,
+        engine: result.engine === 'huggingface' ? 'hf' : (result.engine as ModelEngine) || engine,
         sentiment: {
           label: result.sentiment,
           confidence: result.confidence,
