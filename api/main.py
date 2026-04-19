@@ -19,6 +19,7 @@ api_dir = Path(__file__).parent
 project_root = api_dir.parent
 sys.path.insert(0, str(project_root))
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -34,25 +35,6 @@ from preprocessing.extract_audio import extract_audio
 from preprocessing.extract_all_audio_features import extract_mfcc_features
 from preprocessing.transcribe_audio import transcribe_audio
 from preprocessing.extract_all_text_features import extract_text_features
-
-app = FastAPI(
-    title="Multimodal Sentiment Analysis API",
-    description="API for analyzing sentiment from video, audio, and text. Supports custom fusion model and HuggingFace RoBERTa.",
-    version="2.0.0"
-)
-
-# Configure CORS to allow React frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5173"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ─── Model globals ────────────────────────────────────────────────────────────
 MODEL_DIR = project_root / "models"
@@ -75,8 +57,37 @@ HF_LABEL_MAP = {
     "neutral": "Neutral",
 }
 
-@app.on_event("startup")
-async def load_models():
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Load ML models on startup, clean up on shutdown."""
+    await _load_models()
+    yield
+    # shutdown: nothing to clean up for now
+
+
+app = FastAPI(
+    title="Multimodal Sentiment Analysis API",
+    description="API for analyzing sentiment from video, audio, and text. Supports custom fusion model and HuggingFace RoBERTa.",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+# Configure CORS to allow React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+async def _load_models():
     """Load custom ML models and HuggingFace pipeline on startup"""
     global model, scaler_v, scaler_a, scaler_t, le, hf_pipeline
 
@@ -130,7 +141,7 @@ def _run_hf_inference(text: str) -> dict:
     for k in ("Positive", "Negative", "Neutral"):
         prob_dict.setdefault(k, 0.0)
 
-    sentiment = max(prob_dict, key=prob_dict.get)
+    sentiment = max(prob_dict, key=lambda k: prob_dict[k])
     confidence = prob_dict[sentiment]
     return {"sentiment": sentiment, "confidence": confidence, "probabilities": prob_dict}
 
@@ -144,7 +155,7 @@ async def _extract_audio_and_transcribe(file: UploadFile):
     video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
     audio_extensions = ['.wav', '.mp3', '.m4a', '.flac', '.ogg']
     allowed_extensions = video_extensions + audio_extensions
-    file_ext = Path(file.filename).suffix.lower()
+    file_ext = Path(file.filename or "upload").suffix.lower()
     is_audio_only = file_ext in audio_extensions
 
     if file_ext not in allowed_extensions:
@@ -379,7 +390,7 @@ async def analyze_text(
             raise HTTPException(status_code=500, detail=f"HuggingFace text analysis failed: {str(e)}")
 
     # ── Custom model path ────────────────────────────────────────────────────
-    if not model or not scaler_t or not le:
+    if not model or not scaler_v or not scaler_a or not scaler_t or not le:
         raise HTTPException(status_code=503, detail="Custom model not loaded")
     try:
         text_feat_raw = extract_text_features(text)
