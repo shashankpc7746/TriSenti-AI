@@ -22,5 +22,5 @@ export function ResultAfterTick({ currentAnalysis }: ResultAfterTickProps) {
   
   if (!showResult || !currentAnalysis.sentiment) return null;
   
-  return <SentimentResult sentiment={currentAnalysis.sentiment} engine={currentAnalysis.engine} />;
+  return <SentimentResult sentiment={currentAnalysis.sentiment} {...(currentAnalysis.engine && { engine: currentAnalysis.engine })} />;
 }
