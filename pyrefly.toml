@@ -1,0 +1,27 @@
+# Pyrefly type checker configuration
+# Tells Pyrefly where to find installed packages (our virtualenv)
+# https://pyrefly.org/en/docs/configuration/
+
+python-version = "3.10"
+python-platform = "windows"
+
+# Point to the virtualenv's site-packages so Pyrefly can
+# resolve fastapi, numpy, transformers, uvicorn, etc.
+site-package-path = [
+    "multimodal_env/Lib/site-packages",
+]
+
+# Only type-check our source files, not the venv or node_modules
+project-includes = [
+    "api/**/*.py",
+    "preprocessing/**/*.py",
+    "models/**/*.py",
+    "training/**/*.py",
+]
+
+project-excludes = [
+    "multimodal_env/**",
+    "frontend/**",
+    "**/node_modules/**",
+    "**/__pycache__/**",
+]

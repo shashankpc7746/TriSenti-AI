@@ -1,0 +1,10 @@
+{
+    // Use the virtual environment Python so Pylance finds all packages
+    "python.defaultInterpreterPath": "${workspaceFolder}/multimodal_env/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/multimodal_env/Lib/site-packages"
+    ],
+    // Pyrefly extension setting — force it to use the venv interpreter
+    "python.pyrefly.pythonInterpreterPath": "${workspaceFolder}/multimodal_env/Scripts/python.exe"
+}
