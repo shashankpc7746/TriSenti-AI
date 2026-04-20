@@ -4,22 +4,38 @@ import { motion } from 'motion/react';
 
 interface ProgressStepperProps {
   currentStep: number;
+  analysisType?: 'video' | 'audio' | 'text';
 }
 
-export function ProgressStepper({ currentStep }: ProgressStepperProps) {
-  const steps = [
-    { id: 1, label: 'Audio Extraction', icon: '🔊' },
-    { id: 2, label: 'Speech Recognition', icon: '🎤' },
-    { id: 3, label: 'Feature Extraction', icon: '🧬' },
-    { id: 4, label: 'Sentiment Prediction', icon: '🎯' },
-  ];
+export function ProgressStepper({ currentStep, analysisType = 'video' }: ProgressStepperProps) {
+  const stepsByType: Record<'video' | 'audio' | 'text', { id: number; label: string; icon: string }[]> = {
+    video: [
+      { id: 1, label: 'Audio Extraction',      icon: '🔊' },
+      { id: 2, label: 'Speech Recognition',    icon: '🎤' },
+      { id: 3, label: 'Feature Extraction',    icon: '🧬' },
+      { id: 4, label: 'Sentiment Prediction',  icon: '🎯' },
+    ],
+    audio: [
+      { id: 1, label: 'Audio Processing',      icon: '🎵' },
+      { id: 2, label: 'Speech Recognition',    icon: '🎤' },
+      { id: 3, label: 'MFCC Feature Extraction', icon: '🧬' },
+      { id: 4, label: 'Sentiment Prediction',  icon: '🎯' },
+    ],
+    text: [
+      { id: 1, label: 'Text Tokenisation',     icon: '📝' },
+      { id: 2, label: 'Embedding Generation',  icon: '🔢' },
+      { id: 3, label: 'Feature Extraction',    icon: '🧬' },
+      { id: 4, label: 'Sentiment Prediction',  icon: '🎯' },
+    ],
+  };
+
+  const steps = stepsByType[analysisType];
 
   return (
     <div className="space-y-6">
       {steps.map((step, index) => {
         const isCompleted = currentStep > step.id;
         const isCurrent = currentStep === step.id;
-        const isPending = currentStep < step.id;
 
         return (
           <motion.div
@@ -86,7 +102,7 @@ export function ProgressStepper({ currentStep }: ProgressStepperProps) {
                 </p>
               </div>
 
-              {/* Progress Bar */}
+              {/* Shimmer progress bar for current step */}
               {isCurrent && (
                 <motion.div
                   initial={{ width: 0 }}
@@ -94,14 +110,8 @@ export function ProgressStepper({ currentStep }: ProgressStepperProps) {
                   className="h-2 bg-white/10 rounded-full overflow-hidden"
                 >
                   <motion.div
-                    animate={{
-                      x: ['-100%', '200%'],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: 'linear',
-                    }}
+                    animate={{ x: ['-100%', '200%'] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
                     className="h-full w-1/3 bg-gradient-to-r from-blue-400 to-purple-600"
                   />
                 </motion.div>
