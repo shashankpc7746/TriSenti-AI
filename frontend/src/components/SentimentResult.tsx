@@ -7,6 +7,7 @@ interface SentimentResultProps {
   sentiment: {
     label: string;
     confidence: number;
+    probabilities?: Record<string, number>;
     emotions: {
       video: { emotion: string; score: number };
       audio: { emotion: string; score: number };
@@ -132,6 +133,43 @@ export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
             />
           </div>
         </div>
+
+        {/* Sentiment Probability Breakdown */}
+        {sentiment.probabilities && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="mb-6"
+          >
+            <h3 className="font-semibold text-base sm:text-lg text-white mb-3">Sentiment Probabilities</h3>
+            <div className="space-y-3">
+              {([
+                { key: 'Positive', color: 'from-green-500 to-green-400',  bg: 'bg-green-500/10', label: '😊 Positive' },
+                { key: 'Negative', color: 'from-red-500 to-red-400',     bg: 'bg-red-500/10',   label: '😔 Negative' },
+                { key: 'Neutral',  color: 'from-gray-400 to-gray-300',   bg: 'bg-gray-500/10',  label: '😐 Neutral'  },
+              ] as const).map(({ key, color, bg, label }) => {
+                const pct = ((sentiment.probabilities?.[key] ?? 0) * 100);
+                return (
+                  <div key={key} className={`rounded-xl p-3 ${bg} border border-white/10`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium text-gray-200">{label}</span>
+                      <span className="text-sm font-bold text-white">{pct.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+                        className={`h-full bg-gradient-to-r ${color} rounded-full`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Multimodal Breakdown */}
         <div className="space-y-4">
