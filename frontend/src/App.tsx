@@ -25,6 +25,7 @@ export interface Analysis {
   sentiment?: {
     label: string;
     confidence: number;
+    probabilities?: Record<string, number>;
     emotions: {
       video: { emotion: string; score: number };
       audio: { emotion: string; score: number };
@@ -119,18 +120,19 @@ export default function App() {
         sentiment: {
           label: result.sentiment,
           confidence: result.confidence,
+          probabilities: result.probabilities as Record<string, number> | undefined,
           transcript: result.transcript && result.transcript !== "No speech detected" ? result.transcript : undefined,
           emotions: {
             video: {
-              emotion: emotions[Math.floor(Math.random() * emotions.length)],
+              emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
               score: result.breakdown.video
             },
             audio: {
-              emotion: emotions[Math.floor(Math.random() * emotions.length)],
+              emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
               score: result.breakdown.audio
             },
             text: {
-              emotion: emotions[Math.floor(Math.random() * emotions.length)],
+              emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
               score: result.breakdown.text
             },
           },
@@ -206,20 +208,19 @@ export default function App() {
               confidence: 0.82 + Math.random() * 0.15,
               emotions: {
                 video: { 
-                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)], 
+                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)] ?? 'Neutral', 
                   score: 0.75 + Math.random() * 0.2 
                 },
                 audio: { 
-                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)], 
+                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)] ?? 'Neutral', 
                   score: 0.75 + Math.random() * 0.2 
                 },
                 text: { 
-                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)], 
+                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)] ?? 'Neutral', 
                   score: 0.75 + Math.random() * 0.2 
                 },
               },
-              // Transcript removed - will be provided by backend integration
-              transcript: undefined
+              // transcript omitted — backend provides it for real analyses
             },
           };
           
@@ -301,7 +302,7 @@ export default function App() {
                     </p>
                   </div>
                 </div>
-                <ProgressStepper currentStep={currentAnalysis.currentStep} />
+                <ProgressStepper currentStep={currentAnalysis.currentStep} analysisType={currentAnalysis.type} />
               </div>
               {/* Only show result after last step (Sentiment Prediction) is completed with tick */}
               <ResultAfterTick currentAnalysis={currentAnalysis} />
