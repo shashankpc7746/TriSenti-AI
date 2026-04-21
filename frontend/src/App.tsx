@@ -120,8 +120,8 @@ export default function App() {
         sentiment: {
           label: result.sentiment,
           confidence: result.confidence,
-          probabilities: result.probabilities as Record<string, number> | undefined,
-          transcript: result.transcript && result.transcript !== "No speech detected" ? result.transcript : undefined,
+          ...(result.probabilities && { probabilities: result.probabilities as Record<string, number> }),
+          ...(result.transcript && result.transcript !== "No speech detected" && { transcript: result.transcript as string }),
           emotions: {
             video: {
               emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
