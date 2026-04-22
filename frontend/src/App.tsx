@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MultimodalInput } from './components/MultimodalInput';
 import { ProgressStepper } from './components/ProgressStepper';
 import { FeatureCards } from './components/FeatureCards';
-import { SentimentResult } from './components/SentimentResult';
 import { HistoryList } from './components/HistoryList';
 import trisentiLogo from './assets/TriSenti logo.png';
 import { AnimatedBackground } from './components/AnimatedBackground';
@@ -10,7 +9,10 @@ import { Footer } from './components/Footer';
 import { HowItWorks } from './components/HowItWorks';
 import { UseCases } from './components/UseCases';
 import { ResultAfterTick } from './components/ResultAfterTick';
-import logoImage from 'figma:asset/3f3e9a7ff4d19c90aab4fecc28a836cb0f8ea242.png';
+import { AlertTriangle, X, RefreshCw, ServerCrash } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+type BackendStatus = 'checking' | 'online' | 'offline';
 
 export type ModelEngine = 'custom' | 'hf';
 
@@ -39,12 +41,33 @@ export default function App() {
   const [currentAnalysis, setCurrentAnalysis] = useState<Analysis | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<Analysis[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelEngine>('custom');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>('checking');
+
+  // Poll backend health every 30 s
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/', { signal: AbortSignal.timeout(4000) });
+        setBackendStatus(res.ok ? 'online' : 'offline');
+      } catch {
+        setBackendStatus('offline');
+      }
+    };
+    void check();
+    const id = setInterval(() => void check(), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleAnalyze = async (data: { type: 'video' | 'audio' | 'text'; content: File | string }) => {
+    setErrorMessage(null);
+    setIsAnalyzing(true);
+
     const newAnalysis: Analysis = {
       id: Date.now().toString(),
-      filename: data.type === 'text' 
-        ? `Text Input (${(data.content as string).substring(0, 30)}...)` 
+      filename: data.type === 'text'
+        ? `Text Input (${(data.content as string).substring(0, 30)}...)`
         : (data.content as File).name,
       type: data.type,
       timestamp: new Date(),
@@ -52,66 +75,66 @@ export default function App() {
       currentStep: 0,
       engine: selectedModel,
     };
-    
+
     setCurrentAnalysis(newAnalysis);
-    
-    // Scroll to the progress section
+
+    // Scroll to progress section
     setTimeout(() => {
       const progressSection = document.getElementById('analysis-progress');
       progressSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
-    
-    // Call real backend API
+
     await analyzeWithBackend(data.content, data.type, newAnalysis, selectedModel);
+    setIsAnalyzing(false);
   };
 
-  const analyzeWithBackend = async (fileData: File | string, type: 'video' | 'audio' | 'text', analysis: Analysis, engine: ModelEngine = 'custom') => {
+  const analyzeWithBackend = async (
+    fileData: File | string,
+    type: 'video' | 'audio' | 'text',
+    analysis: Analysis,
+    engine: ModelEngine = 'custom'
+  ) => {
     const API_URL = 'http://localhost:8000';
-    
-    // Animate progress steps 1-3 while backend processes
+
+    // Animate progress steps 1–3
     for (let step = 1; step <= 3; step++) {
       await new Promise(resolve => setTimeout(resolve, step === 1 ? 500 : 1000));
       setCurrentAnalysis(prev => prev ? { ...prev, currentStep: step } : null);
     }
-    
-    // Set step 4 as in progress
+
+    // Step 4 — running model
     setCurrentAnalysis(prev => prev ? { ...prev, currentStep: 4 } : null);
-    
+
     try {
-      let response;
-      
+      let response: Response;
+
       if (type === 'text') {
-        // Text-only analysis
         const textContent = fileData as string;
         const endpoint = `${API_URL}/api/analyze-text?text=${encodeURIComponent(textContent)}&model_engine=${engine}`;
         response = await fetch(endpoint, { method: 'POST' });
       } else {
-        // Video/Audio analysis
         const formData = new FormData();
         formData.append('file', fileData as File);
-        const endpoint = engine === 'hf'
-          ? `${API_URL}/api/analyze-hf`
-          : `${API_URL}/api/analyze`;
+        const endpoint = engine === 'hf' ? `${API_URL}/api/analyze-hf` : `${API_URL}/api/analyze`;
         response = await fetch(endpoint, { method: 'POST', body: formData });
       }
-      
+
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: `Server error: ${response.status}` }));
+        const error = await response.json().catch(() => ({ detail: `Server error ${response.status}` }));
         throw new Error(error.detail || 'Analysis failed');
       }
-      
+
       const result = await response.json();
-      
-      // Map backend response to frontend format
+
       const emotionOptions = {
         Positive: ['Happy', 'Joyful', 'Excited', 'Content'],
         Negative: ['Sad', 'Angry', 'Frustrated', 'Disappointed'],
-        Neutral: ['Calm', 'Neutral', 'Thoughtful', 'Indifferent'],
+        Neutral:  ['Calm', 'Neutral', 'Thoughtful', 'Indifferent'],
       };
-      
+
       const sentimentKey = result.sentiment as keyof typeof emotionOptions;
       const emotions = emotionOptions[sentimentKey] || emotionOptions.Neutral;
-      
+
       const completedAnalysis: Analysis = {
         ...analysis,
         status: 'completed',
@@ -121,114 +144,29 @@ export default function App() {
           label: result.sentiment,
           confidence: result.confidence,
           ...(result.probabilities && { probabilities: result.probabilities as Record<string, number> }),
-          ...(result.transcript && result.transcript !== "No speech detected" && { transcript: result.transcript as string }),
+          ...(result.transcript && result.transcript !== 'No speech detected' && { transcript: result.transcript as string }),
           emotions: {
-            video: {
-              emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
-              score: result.breakdown.video
-            },
-            audio: {
-              emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
-              score: result.breakdown.audio
-            },
-            text: {
-              emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral',
-              score: result.breakdown.text
-            },
+            video: { emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral', score: result.breakdown.video },
+            audio: { emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral', score: result.breakdown.audio },
+            text:  { emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral', score: result.breakdown.text  },
           },
         },
       };
-      
+
       setCurrentAnalysis(completedAnalysis);
       setAnalysisHistory(prev => [completedAnalysis, ...prev]);
-      
+
     } catch (error) {
       console.error('Analysis error:', error);
-      
-      // Show detailed error message
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const detailedError = errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')
-        ? '❌ Cannot connect to backend server!\n\nPlease ensure the backend is running:\n\n1. Open PowerShell\n2. Run .\\run_backend.ps1\n3. Wait for "✅ Models loaded successfully"\n4. Try again!'
-        : `❌ ${errorMessage}`;
-      
-      alert(detailedError);
-      
-      setCurrentAnalysis(prev => prev ? {
-        ...prev,
-        status: 'failed',
-        currentStep: 4,
-      } : null);
+      const raw = error instanceof Error ? error.message : 'Unknown error';
+      const isNetworkError = raw.toLowerCase().includes('fetch') || raw.toLowerCase().includes('failed to fetch') || raw.toLowerCase().includes('networkerror');
+      setErrorMessage(
+        isNetworkError
+          ? 'Cannot reach the backend server. Make sure it is running on port 8000 (run run_backend.ps1) and try again.'
+          : raw
+      );
+      setCurrentAnalysis(prev => prev ? { ...prev, status: 'failed', currentStep: 4 } : null);
     }
-  };
-
-  const simulateAnalysis = (analysis: Analysis) => {
-    let currentStepIndex = 0;
-
-    const interval = setInterval(() => {
-      currentStepIndex++;
-      
-      // Steps 1-3 progress normally
-      if (currentStepIndex <= 3) {
-        setCurrentAnalysis(prev => prev ? { ...prev, currentStep: currentStepIndex } : null);
-      }
-      
-      // When reaching step 4 (Sentiment Prediction), clear interval and handle separately
-      if (currentStepIndex === 4) {
-        clearInterval(interval);
-        
-        // Set to step 4 (in progress)
-        setCurrentAnalysis(prev => prev ? { ...prev, currentStep: 4 } : null);
-        
-        // Wait for prediction to "complete"
-        setTimeout(() => {
-          // Generate mock sentiment results with more realistic variation
-          const sentimentOptions = ['Positive', 'Negative', 'Neutral'];
-          const emotionOptions = {
-            positive: ['Happy', 'Joyful', 'Excited', 'Content'],
-            negative: ['Sad', 'Angry', 'Frustrated', 'Disappointed'],
-            neutral: ['Calm', 'Neutral', 'Thoughtful', 'Indifferent'],
-          };
-          
-          // More varied sentiment selection
-          const rand = Math.random();
-          const randomSentiment = rand < 0.4 ? 'Positive' : rand < 0.7 ? 'Negative' : 'Neutral';
-          const emotionSet = randomSentiment === 'Positive' ? emotionOptions.positive 
-            : randomSentiment === 'Negative' ? emotionOptions.negative 
-            : emotionOptions.neutral;
-          
-          // Note: Mock transcripts removed - real transcription will be done by backend
-          // Currently showing demo UI only without actual speech recognition
-          
-          const completedAnalysis: Analysis = {
-            ...analysis,
-            status: 'completed',
-            currentStep: 5, // Mark as completed (step 5 means step 4 is done with checkmark)
-            sentiment: {
-              label: randomSentiment,
-              confidence: 0.82 + Math.random() * 0.15,
-              emotions: {
-                video: { 
-                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)] ?? 'Neutral', 
-                  score: 0.75 + Math.random() * 0.2 
-                },
-                audio: { 
-                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)] ?? 'Neutral', 
-                  score: 0.75 + Math.random() * 0.2 
-                },
-                text: { 
-                  emotion: emotionSet[Math.floor(Math.random() * emotionSet.length)] ?? 'Neutral', 
-                  score: 0.75 + Math.random() * 0.2 
-                },
-              },
-              // transcript omitted — backend provides it for real analyses
-            },
-          };
-          
-          setCurrentAnalysis(completedAnalysis);
-          setAnalysisHistory(prev => [completedAnalysis, ...prev]);
-        }, 2500); // Wait 2.5s for "prediction" to complete
-      }
-    }, 1500);
   };
 
   const handleViewHistory = (analysis: Analysis) => {
@@ -236,20 +174,28 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleReset = () => {
+    setCurrentAnalysis(null);
+    setErrorMessage(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const isNetworkErrorMsg = errorMessage?.includes('backend server');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 text-white relative overflow-hidden">
       <AnimatedBackground />
-      
+
       <div className="relative z-10">
         {/* Header */}
         <header className="border-b border-white/10 backdrop-blur-sm bg-gray-900/50 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-8 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <img 
-                  src={trisentiLogo} 
-                  alt="TriSenti Logo" 
-                  className="w-12 h-12 rounded-lg border-2 border-white/20 shadow-md object-cover" 
+                <img
+                  src={trisentiLogo}
+                  alt="TriSenti Logo"
+                  className="w-12 h-12 rounded-lg border-2 border-white/20 shadow-md object-cover"
                 />
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
@@ -258,11 +204,29 @@ export default function App() {
                   <p className="text-xs sm:text-sm text-gray-400">Multimodal Sentiment Analysis Platform</p>
                 </div>
               </div>
-              
+
               <div className="hidden md:flex items-center gap-6 text-sm">
-                <a href="#features" className="text-gray-400 hover:text-white transition-colors">Features</a>
+                <a href="#features"    className="text-gray-400 hover:text-white transition-colors">Features</a>
                 <a href="#how-it-works" className="text-gray-400 hover:text-white transition-colors">How It Works</a>
-                <a href="#use-cases" className="text-gray-400 hover:text-white transition-colors">Use Cases</a>
+                <a href="#use-cases"   className="text-gray-400 hover:text-white transition-colors">Use Cases</a>
+
+                {/* Backend status badge */}
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${
+                  backendStatus === 'online'
+                    ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                    : backendStatus === 'offline'
+                    ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                    : 'bg-gray-500/10 border-gray-500/30 text-gray-400'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    backendStatus === 'online'
+                      ? 'bg-green-400 animate-pulse'
+                      : backendStatus === 'offline'
+                      ? 'bg-red-400'
+                      : 'bg-gray-400 animate-pulse'
+                  }`} />
+                  {backendStatus === 'online' ? 'API Online' : backendStatus === 'offline' ? 'API Offline' : 'Checking...'}
+                </div>
               </div>
             </div>
           </div>
@@ -270,10 +234,11 @@ export default function App() {
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-16 sm:space-y-20">
-          {/* Hero Section */}
+
+          {/* Hero */}
           <section className="text-center space-y-4 sm:space-y-6 py-4 sm:py-8">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight px-4">
-              Analyze Emotions from Video, Audio & Text
+              Analyze Emotions from Video, Audio &amp; Text
             </h2>
             <p className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto px-4">
               Advanced deep learning models analyze multimodal inputs to detect sentiment and emotions with high accuracy
@@ -282,33 +247,87 @@ export default function App() {
 
           {/* Input Section */}
           <section>
-            <MultimodalInput onAnalyze={handleAnalyze} selectedModel={selectedModel} onModelChange={setSelectedModel} />
+            <MultimodalInput
+              onAnalyze={handleAnalyze}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              isAnalyzing={isAnalyzing}
+            />
           </section>
+
+          {/* Inline Error Banner */}
+          <AnimatePresence>
+            {errorMessage && (
+              <motion.section
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                className={`rounded-2xl border p-5 flex items-start gap-4 ${
+                  isNetworkErrorMsg
+                    ? 'bg-orange-500/10 border-orange-500/40'
+                    : 'bg-red-500/10 border-red-500/40'
+                }`}
+              >
+                {isNetworkErrorMsg
+                  ? <ServerCrash className="w-6 h-6 text-orange-400 flex-shrink-0 mt-0.5" />
+                  : <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+                }
+                <div className="flex-1">
+                  <p className={`font-semibold text-base ${isNetworkErrorMsg ? 'text-orange-300' : 'text-red-300'}`}>
+                    {isNetworkErrorMsg ? 'Backend Unreachable' : 'Analysis Failed'}
+                  </p>
+                  <p className={`text-sm mt-1 leading-relaxed ${isNetworkErrorMsg ? 'text-orange-400/90' : 'text-red-400/90'}`}>
+                    {errorMessage}
+                  </p>
+                  {isNetworkErrorMsg && (
+                    <code className="block mt-2 text-xs bg-black/30 rounded-lg px-3 py-2 text-orange-200 font-mono">
+                      .\\run_backend.ps1
+                    </code>
+                  )}
+                </div>
+                <button onClick={() => setErrorMessage(null)} className="text-gray-500 hover:text-gray-300 transition-colors mt-0.5">
+                  <X className="w-5 h-5" />
+                </button>
+              </motion.section>
+            )}
+          </AnimatePresence>
 
           {/* Current Analysis */}
           {currentAnalysis && (
             <section id="analysis-progress" className="space-y-8 scroll-mt-24">
               <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                    <span className="text-2xl">
-                      {currentAnalysis.type === 'video' ? '🎥' : currentAnalysis.type === 'audio' ? '🎵' : '📝'}
-                    </span>
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                      <span className="text-2xl">
+                        {currentAnalysis.type === 'video' ? '🎥' : currentAnalysis.type === 'audio' ? '🎵' : '📝'}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold">{currentAnalysis.filename}</h3>
+                      <p className="text-gray-400">{currentAnalysis.timestamp.toLocaleString()}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">{currentAnalysis.filename}</h3>
-                    <p className="text-gray-400">
-                      {currentAnalysis.timestamp.toLocaleString()}
-                    </p>
-                  </div>
+                  {/* New Analysis button — only shown when done or failed */}
+                  {(currentAnalysis.status === 'completed' || currentAnalysis.status === 'failed') && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleReset}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium text-gray-300 hover:text-white transition-all"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      New Analysis
+                    </motion.button>
+                  )}
                 </div>
                 <ProgressStepper currentStep={currentAnalysis.currentStep} analysisType={currentAnalysis.type} />
               </div>
-              {/* Only show result after last step (Sentiment Prediction) is completed with tick */}
               <ResultAfterTick currentAnalysis={currentAnalysis} />
             </section>
           )}
-
 
           {/* How It Works */}
           <section id="how-it-works">
@@ -335,15 +354,11 @@ export default function App() {
           {analysisHistory.length > 0 && (
             <section>
               <h2 className="text-3xl font-bold mb-8">Analysis History</h2>
-              <HistoryList 
-                analyses={analysisHistory} 
-                onViewAnalysis={handleViewHistory}
-              />
+              <HistoryList analyses={analysisHistory} onViewAnalysis={handleViewHistory} />
             </section>
           )}
         </main>
 
-        {/* Footer */}
         <Footer />
       </div>
     </div>
