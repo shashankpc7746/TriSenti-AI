@@ -57,6 +57,9 @@ HF_LABEL_MAP = {
     "neutral": "Neutral",
 }
 
+# Maximum upload size: 200 MB (matches frontend validation)
+MAX_UPLOAD_BYTES = 200 * 1024 * 1024
+
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
@@ -161,8 +164,24 @@ async def _extract_audio_and_transcribe(file: UploadFile):
     if file_ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+            detail=f"Invalid file type '{file_ext}'. Allowed: {', '.join(allowed_extensions)}"
         )
+
+    # Server-side size guard — read in chunks and reject early if too large
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)  # 1 MB at a time
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum allowed size is {MAX_UPLOAD_BYTES // (1024*1024)} MB."
+            )
+        chunks.append(chunk)
+    file_bytes = b"".join(chunks)
 
     vid_path = None
     audio_wav_path = None
@@ -170,7 +189,7 @@ async def _extract_audio_and_transcribe(file: UploadFile):
     # Save uploaded file
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
         vid_path = tmp.name
-        tmp.write(await file.read())
+        tmp.write(file_bytes)
 
     # Get / convert audio to WAV
     if is_audio_only:
@@ -220,6 +239,25 @@ async def root():
             "custom_model": model is not None,
             "huggingface_roberta": hf_pipeline is not None,
         }
+    }
+
+
+@app.get("/api/health")
+async def health():
+    """Detailed health check — returns model load status for each engine."""
+    return {
+        "status": "ok",
+        "version": "2.0.0",
+        "models": {
+            "custom_fusion": {
+                "loaded": model is not None and scaler_v is not None,
+                "description": "ResNet18 + MFCC + DistilBERT early fusion (CMU-MOSI)",
+            },
+            "huggingface_roberta": {
+                "loaded": hf_pipeline is not None,
+                "description": HF_MODEL_NAME,
+            },
+        },
     }
 
 
