@@ -151,7 +151,9 @@ VITE_API_URL=https://<user>-<space>.hf.space
   wakes the container (a few seconds) plus the RoBERTa warm-up. Then it's fast.
 - **Transcription needs internet**: video/audio transcription uses Google Speech
   Recognition, reached over the Space's outbound network.
-- **Model size**: artifacts are ~4 MB total and commit as plain git (no LFS).
+- **Model size**: artifacts are ~4 MB total, tracked via git-LFS in the Space
+  (Hugging Face requires LFS for binary files like `.h5`/`.pkl`). The deploy
+  workflow handles this automatically.
 - **CORS errors in the browser console**: almost always mean `CORS_ALLOW_ORIGINS`
   doesn't exactly match the frontend origin (scheme + host, no path).
 - **The Action force-pushes** to the Space: the Space mirrors the backend subset

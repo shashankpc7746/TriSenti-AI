@@ -54,16 +54,23 @@ foreach ($dir in @("api", "preprocessing", "models")) {
 Get-ChildItem $SpacePath -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem (Join-Path $SpacePath "models") -Directory -Filter "backup_*" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-# ── Force small model files to commit as plain git (override HF's LFS defaults) ─
-# HF's default .gitattributes routes *.h5/*.pkl/*.bin through git-LFS. Our model
-# is ~4 MB total, so plain git is simpler and avoids LFS. We override per-extension.
+# ── Track small model files with git-LFS (HF requires LFS for binaries) ────────
+# HF rejects plain-git binary files (.h5/.pkl), even small ones. Configure LFS.
 $gitattributes = Join-Path $SpacePath ".gitattributes"
 $override = @"
-# TriSenti: small model artifacts (~4 MB) are committed as plain git, not LFS.
-*.h5 -filter -diff -merge text=auto
-*.pkl -filter -diff -merge text=auto
+# TriSenti: model artifacts tracked via git-LFS (required by Hugging Face).
+*.h5 filter=lfs diff=lfs merge=lfs -text
+*.pkl filter=lfs diff=lfs merge=lfs -text
 "@
 Add-Content -Path $gitattributes -Value "`n$override"
+
+Push-Location $SpacePath
+try {
+    git lfs install --local | Out-Null
+    git lfs track "*.h5" "*.pkl" | Out-Null
+} finally {
+    Pop-Location
+}
 
 Write-Host ""
 Write-Host "Done. Files staged into the Space clone." -ForegroundColor Green

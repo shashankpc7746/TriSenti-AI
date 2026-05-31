@@ -44,8 +44,8 @@ jobs:
           # Drop caches / backups that shouldn't ship.
           find space_build -type d -name "__pycache__" -prune -exec rm -rf {} +
           rm -rf space_build/models/backup_* || true
-          # Commit small model files as plain git (no LFS) inside the Space repo.
-          printf '%s\n' '*.h5 -filter -diff -merge text=auto' '*.pkl -filter -diff -merge text=auto' > space_build/.gitattributes
+          # HF requires binary files (.h5 / .pkl) to be tracked with git-LFS.
+          printf '%s\n' '*.h5 filter=lfs diff=lfs merge=lfs -text' '*.pkl filter=lfs diff=lfs merge=lfs -text' > space_build/.gitattributes
 
       - name: Push to Hugging Face Space
         env:
@@ -64,10 +64,17 @@ jobs:
           git checkout -q -b main
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # HF requires model binaries via git-LFS. Initialise LFS and track the
+          # binary extensions BEFORE adding files so they're stored as LFS objects.
+          git lfs install --local
+          git lfs track "*.h5" "*.pkl"
+
           git add .
           git commit -q -m "Sync backend from ${GITHUB_SHA::7}"
 
           REMOTE="https://${HF_USERNAME}:${HF_TOKEN}@huggingface.co/spaces/${HF_USERNAME}/${HF_SPACE}"
           # Force-push: the Space mirrors the backend subset of this repo.
+          git lfs push --all "$REMOTE" main || true
           git push -f "$REMOTE" main
           echo "✅ Pushed to https://huggingface.co/spaces/${HF_USERNAME}/${HF_SPACE}"
