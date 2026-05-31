@@ -11,6 +11,7 @@ import { UseCases } from './components/UseCases';
 import { ResultAfterTick } from './components/ResultAfterTick';
 import { AlertTriangle, X, RefreshCw, ServerCrash } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { API_URL } from './config';
 
 type BackendStatus = 'checking' | 'online' | 'offline';
 
@@ -49,7 +50,7 @@ export default function App() {
   useEffect(() => {
     const check = async () => {
       try {
-        const res = await fetch('http://localhost:8000/', { signal: AbortSignal.timeout(4000) });
+        const res = await fetch(`${API_URL}/`, { signal: AbortSignal.timeout(4000) });
         setBackendStatus(res.ok ? 'online' : 'offline');
       } catch {
         setBackendStatus('offline');
@@ -94,7 +95,7 @@ export default function App() {
     analysis: Analysis,
     engine: ModelEngine = 'hf'
   ) => {
-    const API_URL = 'http://localhost:8000';
+    // API_URL comes from src/config.ts (VITE_API_URL env var, localhost fallback)
 
     // Animate progress steps 1–3
     for (let step = 1; step <= 3; step++) {

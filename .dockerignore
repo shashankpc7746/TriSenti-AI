@@ -1,0 +1,28 @@
+# Keep the backend image small — exclude everything not needed at runtime.
+
+# Local virtualenv (deps are installed fresh from requirements-backend.txt)
+multimodal_env/
+
+# Frontend (deployed separately as a static site)
+frontend/
+
+# Dataset + training artifacts (not needed to serve the model)
+data/
+training/
+models/backup_*/
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+
+# Git + editor + docs
+.git/
+.gitignore
+.vscode/
+*.md
+pyrefly.toml
+
+# Misc
+*.log
+.env
+.env.*

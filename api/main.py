@@ -78,14 +78,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS to allow React frontend
+# Configure CORS to allow the React frontend.
+# Origins come from the CORS_ALLOW_ORIGINS env var (comma-separated) so the
+# deployed frontend domain can be added without code changes. Falls back to the
+# common local dev ports. Example:
+#   CORS_ALLOW_ORIGINS="https://trisenti.vercel.app,https://www.trisenti.app"
+_default_origins = "http://localhost:3000,http://localhost:3001,http://localhost:5173"
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get("CORS_ALLOW_ORIGINS", _default_origins).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5173"
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -498,6 +505,10 @@ async def analyze_text(
 
 if __name__ == "__main__":
     import uvicorn
+    # Deployment platforms (Render, Railway, Heroku, etc.) inject the port via
+    # the PORT env var. Fall back to 8000 for local runs.
+    port = int(os.environ.get("PORT", "8000"))
+    host = os.environ.get("HOST", "0.0.0.0")
     print("🚀 Starting Multimodal Sentiment Analysis API v2.0 ...")
-    print("📍 http://localhost:8000  |  Docs: http://localhost:8000/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    print(f"📍 http://{host}:{port}  |  Docs: http://{host}:{port}/docs")
+    uvicorn.run(app, host=host, port=port, log_level="info")

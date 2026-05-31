@@ -1,0 +1,27 @@
+# Focused backend runtime dependencies for deployment (Docker / cloud).
+#
+# The root requirements.txt is a full `pip freeze` of the dev environment
+# (streamlit, spacy, matplotlib, etc.) and is far heavier than the API needs.
+# This file lists only what api/main.py + preprocessing/ import at runtime.
+#
+# Versions are pinned to match the known-good local environment.
+
+# ── Web framework ──────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# ── ML / inference ─────────────────────────────────────────────────────────
+tensorflow==2.11.0
+numpy==1.25.2
+scikit-learn==1.2.2          # required to unpickle the scalers + label encoder
+transformers==4.51.3
+torch==2.7.0                 # CPU build; see Dockerfile for the CPU index URL
+torchvision==0.22.0
+
+# ── Media / feature extraction ─────────────────────────────────────────────
+opencv-python-headless==4.7.0.72   # headless: no GUI libs needed in a container
+moviepy==1.0.3
+librosa==0.10.0.post2
+SpeechRecognition==3.10.0
+tqdm==4.67.1
