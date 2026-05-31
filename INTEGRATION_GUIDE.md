@@ -1,4 +1,6 @@
-# Multimodal Sentiment Analysis - Frontend/Backend Integration
+# TriSenti AI — Frontend/Backend Integration
+
+> Part of **TriSenti AI v1.0**. For deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 🎉 Setup Complete!
 
