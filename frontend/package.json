@@ -1,7 +1,7 @@
 {
       "type": "module",
-      "name": "Multimodal Sentiment Analysis",
-      "version": "0.1.0",
+      "name": "trisenti-ai",
+      "version": "1.0.0",
       "private": true,
       "dependencies": {
             "@radix-ui/react-accordion": "^1.2.12",

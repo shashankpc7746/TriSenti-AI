@@ -74,7 +74,7 @@ async def lifespan(application: FastAPI):
 app = FastAPI(
     title="Multimodal Sentiment Analysis API",
     description="API for analyzing sentiment from video, audio, and text. Supports custom fusion model and HuggingFace RoBERTa.",
-    version="2.0.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -272,7 +272,7 @@ async def root():
     return {
         "status": "ok",
         "message": "Multimodal Sentiment Analysis API",
-        "version": "2.0.0",
+        "version": "1.0.0",
         "engines": {
             "custom_model": model is not None,
             "huggingface_roberta": hf_pipeline is not None,
@@ -285,7 +285,7 @@ async def health():
     """Detailed health check — returns model load status for each engine."""
     return {
         "status": "ok",
-        "version": "2.0.0",
+        "version": "1.0.0",
         "models": {
             "custom_fusion": {
                 "loaded": model is not None and scaler_v is not None,
@@ -509,6 +509,6 @@ if __name__ == "__main__":
     # the PORT env var. Fall back to 8000 for local runs.
     port = int(os.environ.get("PORT", "8000"))
     host = os.environ.get("HOST", "0.0.0.0")
-    print("🚀 Starting Multimodal Sentiment Analysis API v2.0 ...")
+    print("🚀 Starting Multimodal Sentiment Analysis API v1.0 ...")
     print(f"📍 http://{host}:{port}  |  Docs: http://{host}:{port}/docs")
     uvicorn.run(app, host=host, port=port, log_level="info")
