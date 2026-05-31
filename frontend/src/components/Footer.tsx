@@ -54,7 +54,7 @@ export function Footer() {
           </p>
 
           <a
-            href="https://github.com/shashankpc7746/Multimodal-Sentiment-Analysis-by-Shashank"
+            href="https://github.com/shashankpc7746/TriSenti-AI"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors group"
