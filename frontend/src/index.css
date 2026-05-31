@@ -3139,3 +3139,37 @@ html {
 @media (hover: hover) {
   .hover\:shadow-amber-500\/70:hover { --tw-shadow-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 70%, transparent); }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Manually-added layout/spacing utilities missing from the precompiled output.
+
+   The static Tailwind build above omitted several common utilities that
+   components rely on (e.g. the engine-selector "Recommended" badge uses
+   absolute top-3/right-3 — without them the badge collapsed to 0,0 and
+   overlapped the card title). Defined here, unlayered, so they reliably apply.
+   Spacing uses the same --spacing (0.25rem) scale as the generated utilities.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Absolute offsets */
+.top-3   { top: calc(var(--spacing) * 3); }
+.right-3 { right: calc(var(--spacing) * 3); }
+.left-3  { left: calc(var(--spacing) * 3); }
+
+/* Padding */
+.px-2    { padding-inline: calc(var(--spacing) * 2); }
+.py-0\.5 { padding-block: calc(var(--spacing) * 0.5); }
+.py-1    { padding-block: calc(var(--spacing) * 1); }
+
+/* Margin */
+.ml-auto { margin-left: auto; }
+
+/* Padding-right (clearance so the title doesn't run under the Recommended badge) */
+.pr-24 { padding-right: calc(var(--spacing) * 24); }
+
+/* Typography */
+.text-\[10px\]   { font-size: 10px; line-height: 1.2; }
+.tracking-wide   { letter-spacing: 0.025em; }
+
+/* Amber badge colors used by the Recommended pill */
+.text-amber-200      { color: oklch(0.924 0.12 95.746); }
+.border-amber-400\/40 { border-color: color-mix(in oklab, oklch(0.828 0.189 84.429) 40%, transparent); }

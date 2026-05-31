@@ -329,7 +329,7 @@ export function MultimodalInput({ onAnalyze, selectedModel, onModelChange, isAna
                 <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 border border-amber-400/40">
                   Recommended
                 </span>
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-2 pr-24">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow">
                     <Zap className="w-5 h-5 text-white" />
                   </div>
