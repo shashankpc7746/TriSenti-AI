@@ -315,6 +315,34 @@ export function MultimodalInput({ onAnalyze, selectedModel, onModelChange, isAna
               Choose Analysis Engine
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* HuggingFace RoBERTa Card — recommended default */}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => onModelChange('hf')}
+                className={`relative text-left p-4 rounded-2xl border-2 transition-all ${
+                  selectedModel === 'hf'
+                    ? 'border-amber-500 bg-amber-500/15 shadow-lg shadow-amber-500/20'
+                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                }`}
+              >
+                <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 border border-amber-400/40">
+                  Recommended
+                </span>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-sm">RoBERTa (HuggingFace)</p>
+                    <p className="text-xs text-amber-300">State-of-the-Art NLP</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  twitter-roberta-base-sentiment trained on 124M tweets. Fast &amp; highly accurate.
+                </p>
+              </motion.button>
+
               {/* Custom Model Card */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -340,34 +368,6 @@ export function MultimodalInput({ onAnalyze, selectedModel, onModelChange, isAna
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
                   ResNet18 + MFCC + DistilBERT early fusion model trained on CMU-MOSI dataset.
-                </p>
-              </motion.button>
-
-              {/* HuggingFace RoBERTa Card */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => onModelChange('hf')}
-                className={`relative text-left p-4 rounded-2xl border-2 transition-all ${
-                  selectedModel === 'hf'
-                    ? 'border-amber-500 bg-amber-500/15 shadow-lg shadow-amber-500/20'
-                    : 'border-white/10 bg-white/5 hover:border-white/20'
-                }`}
-              >
-                {selectedModel === 'hf' && (
-                  <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-amber-400 shadow-md shadow-amber-400/60" />
-                )}
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow">
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-white text-sm">RoBERTa (HuggingFace)</p>
-                    <p className="text-xs text-amber-300">State-of-the-Art NLP</p>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  twitter-roberta-base-sentiment trained on 124M tweets. Fast &amp; highly accurate.
                 </p>
               </motion.button>
             </div>

@@ -48,6 +48,8 @@ le = None
 
 # HuggingFace RoBERTa pipeline
 hf_pipeline = None
+import threading
+_hf_load_lock = threading.Lock()
 HF_MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 # Label mapping for HF model → our labels
@@ -121,30 +123,37 @@ async def _load_models():
     if EAGER_LOAD_HF:
         _get_hf_pipeline()
     else:
-        print("ℹ️  RoBERTa will load on first request (lazy). "
-              "Set EAGER_LOAD_HF=1 to preload at startup.")
+        # RoBERTa is the default UI engine, so warm it up in a background thread:
+        # startup stays fast (~20-30s) but the pipeline is usually ready before
+        # the first user request, avoiding a slow first analysis.
+        print("ℹ️  Warming up RoBERTa in the background (set EAGER_LOAD_HF=1 to "
+              "block on it at startup).")
+        threading.Thread(target=_get_hf_pipeline, daemon=True).start()
 
 
 def _get_hf_pipeline():
-    """Return the RoBERTa pipeline, loading it on first call (thread-safe enough
-    for our single-worker dev server)."""
+    """Return the RoBERTa pipeline, loading it on first call. A lock guards
+    against the background warm-up thread and a request thread loading it twice."""
     global hf_pipeline
     if hf_pipeline is not None:
         return hf_pipeline
-    try:
-        from transformers import pipeline as hf_pipe
-        print(f"⏳ Loading HuggingFace model: {HF_MODEL_NAME} ...")
-        hf_pipeline = hf_pipe(
-            "text-classification",
-            model=HF_MODEL_NAME,
-            top_k=None,          # return all scores
-            truncation=True,
-            max_length=512,
-        )
-        print("✅ HuggingFace RoBERTa pipeline loaded successfully")
-    except Exception as e:
-        print(f"❌ Error loading HuggingFace pipeline: {e}")
-        hf_pipeline = None
+    with _hf_load_lock:
+        if hf_pipeline is not None:   # re-check inside the lock
+            return hf_pipeline
+        try:
+            from transformers import pipeline as hf_pipe
+            print(f"⏳ Loading HuggingFace model: {HF_MODEL_NAME} ...")
+            hf_pipeline = hf_pipe(
+                "text-classification",
+                model=HF_MODEL_NAME,
+                top_k=None,          # return all scores
+                truncation=True,
+                max_length=512,
+            )
+            print("✅ HuggingFace RoBERTa pipeline loaded successfully")
+        except Exception as e:
+            print(f"❌ Error loading HuggingFace pipeline: {e}")
+            hf_pipeline = None
     return hf_pipeline
 
 

@@ -40,7 +40,7 @@ export interface Analysis {
 export default function App() {
   const [currentAnalysis, setCurrentAnalysis] = useState<Analysis | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<Analysis[]>([]);
-  const [selectedModel, setSelectedModel] = useState<ModelEngine>('custom');
+  const [selectedModel, setSelectedModel] = useState<ModelEngine>('hf');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('checking');
@@ -92,7 +92,7 @@ export default function App() {
     fileData: File | string,
     type: 'video' | 'audio' | 'text',
     analysis: Analysis,
-    engine: ModelEngine = 'custom'
+    engine: ModelEngine = 'hf'
   ) => {
     const API_URL = 'http://localhost:8000';
 
