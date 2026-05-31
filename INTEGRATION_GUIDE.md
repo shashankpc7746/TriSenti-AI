@@ -11,10 +11,12 @@ Your frontend is now connected to a real Python backend that performs actual sen
 Open a **new terminal** and run:
 
 ```powershell
-cd "d:\SHASHANK\Vs-code\Multimodal Sentiment Analysis by Shashank\api"
-$env:PYTHONPATH = "d:\SHASHANK\Vs-code\Multimodal Sentiment Analysis by Shashank\multimodal_env\Lib\site-packages;d:\SHASHANK\Vs-code\Multimodal Sentiment Analysis by Shashank"
+cd "d:\SHASHANK\Vs-code\TriSenti-AI\api"
+$env:PYTHONPATH = "d:\SHASHANK\Vs-code\TriSenti-AI\multimodal_env\Lib\site-packages;d:\SHASHANK\Vs-code\TriSenti-AI"
 py -3.10 -m uvicorn main:app --reload --port 8000
 ```
+
+> Tip: prefer `.\run_backend.ps1` from the project root — it resolves paths automatically and works regardless of the folder name.
 
 You should see:
 
@@ -28,7 +30,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8000
 In another terminal (or use the existing one):
 
 ```powershell
-cd "d:\SHASHANK\Vs-code\Multimodal Sentiment Analysis by Shashank\frontend"
+cd "d:\SHASHANK\Vs-code\TriSenti-AI\frontend"
 npm run dev
 ```
 

@@ -64,7 +64,7 @@ After uploading content or typing text, a **"Choose Analysis Engine"** panel app
 ## 📂 Project Structure
 
 ```
-Multimodal Sentiment Analysis by Shashank/
+TriSenti AI/
 │
 ├── 🖥️  frontend/                         # React + TypeScript (Vite) frontend
 │   ├── src/
@@ -134,8 +134,8 @@ Multimodal Sentiment Analysis by Shashank/
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/shashankpc7746/Multimodal-Sentiment-Analysis-by-Shashank.git
-cd Multimodal-Sentiment-Analysis-by-Shashank
+git clone https://github.com/shashankpc7746/TriSenti-AI.git
+cd TriSenti-AI
 ```
 
 **2. Set up Python environment**

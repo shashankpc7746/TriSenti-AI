@@ -1,7 +1,9 @@
 # Backend Startup Script
 # Checks prerequisites before launching, then starts uvicorn via py -3.10
 
-$ProjectRoot    = "d:\SHASHANK\Vs-code\Multimodal Sentiment Analysis by Shashank"
+# Resolve the project root from this script's own location so the script
+# keeps working even if the project folder is renamed or moved.
+$ProjectRoot    = $PSScriptRoot
 $VenvPackages   = "$ProjectRoot\multimodal_env\Lib\site-packages"
 $ApiDir         = "$ProjectRoot\api"
 $Port           = 8000
