@@ -182,3 +182,6 @@ frontend/dist/
 frontend/build/
 .vite/
 *.local
+
+# Model backups created before retraining
+models/backup_*/

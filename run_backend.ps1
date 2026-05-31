@@ -1,5 +1,12 @@
 # Backend Startup Script
 # Checks prerequisites before launching, then starts uvicorn via py -3.10
+#
+# Usage:
+#   .\run_backend.ps1            # fast: no --reload, RoBERTa lazy-loads
+#   .\run_backend.ps1 -Reload    # development: hot-reload on file changes
+param(
+    [switch]$Reload
+)
 
 # Resolve the project root from this script's own location so the script
 # keeps working even if the project folder is renamed or moved.
@@ -49,7 +56,8 @@ Write-Host "  Models directory found." -ForegroundColor Green
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "Loading ML models — this takes ~2-4 minutes on first run." -ForegroundColor Yellow
+Write-Host "Loading the custom model takes ~20-30s. RoBERTa loads lazily on first use." -ForegroundColor Yellow
+Write-Host "  (set EAGER_LOAD_HF=1 to preload RoBERTa at startup)"                      -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  API URL  : http://localhost:$Port"      -ForegroundColor Cyan
 Write-Host "  API Docs : http://localhost:$Port/docs" -ForegroundColor Cyan
@@ -57,7 +65,17 @@ Write-Host ""
 
 $env:PYTHONPATH = "$VenvPackages;$ApiDir;$ProjectRoot"
 Set-Location $ApiDir
-py -3.10 -m uvicorn main:app --reload --port $Port
+
+# --reload is great for active backend development but forces a slow re-import of
+# TensorFlow/Torch on every file change and adds a watcher subprocess. Pass
+# -Reload to opt back in; default is the faster non-reload server.
+if ($Reload) {
+    Write-Host "Starting with --reload (development mode)..." -ForegroundColor DarkGray
+    py -3.10 -m uvicorn main:app --reload --port $Port
+}
+else {
+    py -3.10 -m uvicorn main:app --port $Port
+}
 
 Write-Host ""
 Write-Host "Backend stopped." -ForegroundColor Red

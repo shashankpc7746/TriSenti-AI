@@ -160,6 +160,20 @@ cd ..
 .\run_backend.ps1
 ```
 
+By default the custom model loads at startup (~20-30s) and the **RoBERTa engine
+loads lazily on first use**, so the API is ready quickly. The first RoBERTa
+request pays a one-time load cost. To preload RoBERTa at startup instead:
+
+```powershell
+$env:EAGER_LOAD_HF = "1"; .\run_backend.ps1
+```
+
+For active backend development with hot-reload:
+
+```powershell
+.\run_backend.ps1 -Reload
+```
+
 Or manually:
 ```powershell
 cd api
@@ -242,14 +256,23 @@ curl -X POST "http://localhost:8000/api/analyze-text?text=I+love+this&model_engi
 
 ### Custom Fusion Model (CMU-MOSI)
 
-Trained on 400 clips from the CMU-MOSI mini dataset:
+Trained on 400 clips from the CMU-MOSI mini dataset with **modality-dropout
+augmentation** — the model is trained on every modality combination it meets at
+inference (full, text-only, audio-only, video-only, audio+video), which fixed a
+large accuracy drop on single-modality inputs.
 
-| Metric | Value |
-|--------|-------|
-| Test Accuracy | **76.25%** |
-| Positive F1 | 0.83 |
-| Negative F1 | 0.71 |
-| Neutral F1 | 0.44 |
+| Scenario | Accuracy |
+|----------|----------|
+| Full multimodal (video+audio+text) | **78.8%** |
+| Text-only | **67.5%** |
+| Audio+Video (no speech) | 58.8% |
+| Audio-only | 56.3% |
+| Video-only | 60.0% |
+
+> **Note on Neutral:** the mini dataset has only 18 Neutral clips out of 400, so
+> the Neutral class is effectively unlearnable and its F1 is near zero. This is a
+> dataset limitation, not a tuning issue. For reliable text sentiment, prefer the
+> RoBERTa engine.
 
 ### HuggingFace RoBERTa
 

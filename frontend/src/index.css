@@ -3076,3 +3076,66 @@ html {
     opacity: 0.5;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Manually-added amber & orange utilities.
+
+   The precompiled Tailwind output above ships only blue/purple/pink/green/red/
+   gray/slate/white. Several components (RoBERTa engine card + analyze button,
+   engine badge, history badge, "Backend Unreachable" banner) use amber/orange
+   classes that were never generated, so they rendered transparent/invisible.
+
+   These rules live OUTSIDE @layer utilities on purpose: unlayered styles win
+   over layered ones in the cascade, so they reliably take effect. Color values
+   are the official Tailwind v4 oklch tokens.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Background */
+.bg-amber-500\/15 { background-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 15%, transparent); }
+.bg-amber-500\/20 { background-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 20%, transparent); }
+.bg-amber-500\/25 { background-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 25%, transparent); }
+.bg-amber-400     { background-color: oklch(0.828 0.189 84.429); }
+.bg-orange-500\/10 { background-color: color-mix(in oklab, oklch(0.705 0.213 47.604) 10%, transparent); }
+
+/* Text */
+.text-amber-100   { color: oklch(0.962 0.059 95.617); }
+.text-amber-300   { color: oklch(0.879 0.169 91.605); }
+.text-orange-200  { color: oklch(0.901 0.076 70.697); }
+.text-orange-300  { color: oklch(0.837 0.128 66.29); }
+.text-orange-400  { color: oklch(0.75 0.183 55.934); }
+.text-orange-400\/90 { color: color-mix(in oklab, oklch(0.75 0.183 55.934) 90%, transparent); }
+
+/* Border */
+.border-amber-500    { border-color: oklch(0.769 0.188 70.08); }
+.border-amber-400\/30 { border-color: color-mix(in oklab, oklch(0.828 0.189 84.429) 30%, transparent); }
+.border-amber-500\/30 { border-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 30%, transparent); }
+.border-orange-500\/40 { border-color: color-mix(in oklab, oklch(0.705 0.213 47.604) 40%, transparent); }
+
+/* Gradient stops (from-amber-500 → to-orange-500) */
+.from-amber-500 {
+  --tw-gradient-from: oklch(0.769 0.188 70.08);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+.to-orange-500 {
+  --tw-gradient-to: oklch(0.705 0.213 47.604);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+
+/* Shadow colors */
+.shadow-amber-500\/20 { --tw-shadow-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 20%, transparent); }
+.shadow-amber-500\/50 { --tw-shadow-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 50%, transparent); }
+.shadow-amber-400\/60 { --tw-shadow-color: color-mix(in oklab, oklch(0.828 0.189 84.429) 60%, transparent); }
+
+@media (hover: hover) {
+  .hover\:shadow-amber-500\/70:hover { --tw-shadow-color: color-mix(in oklab, oklch(0.769 0.188 70.08) 70%, transparent); }
+}

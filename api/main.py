@@ -90,11 +90,17 @@ app.add_middleware(
 )
 
 
-async def _load_models():
-    """Load custom ML models and HuggingFace pipeline on startup"""
-    global model, scaler_v, scaler_a, scaler_t, le, hf_pipeline
+# Set EAGER_LOAD_HF=1 to load RoBERTa at startup (old behaviour). By default we
+# lazy-load it on first use so the API becomes ready in ~20-30s instead of
+# ~2-3min — the first RoBERTa request then pays a one-time ~30-60s cost.
+EAGER_LOAD_HF = os.environ.get("EAGER_LOAD_HF", "0") == "1"
 
-    # ── 1. Load custom fusion model ──────────────────────────────────────────
+
+async def _load_models():
+    """Load the custom fusion model on startup. RoBERTa loads lazily by default."""
+    global model, scaler_v, scaler_a, scaler_t, le
+
+    # ── Load custom fusion model (fast) ──────────────────────────────────────
     try:
         model = load_model(str(MODEL_DIR / "final_multimodal_logits_model.h5"))
 
@@ -111,7 +117,20 @@ async def _load_models():
     except Exception as e:
         print(f"❌ Error loading custom model: {e}")
 
-    # ── 2. Load HuggingFace RoBERTa pipeline ────────────────────────────────
+    # ── HuggingFace RoBERTa — optional eager load ───────────────────────────
+    if EAGER_LOAD_HF:
+        _get_hf_pipeline()
+    else:
+        print("ℹ️  RoBERTa will load on first request (lazy). "
+              "Set EAGER_LOAD_HF=1 to preload at startup.")
+
+
+def _get_hf_pipeline():
+    """Return the RoBERTa pipeline, loading it on first call (thread-safe enough
+    for our single-worker dev server)."""
+    global hf_pipeline
+    if hf_pipeline is not None:
+        return hf_pipeline
     try:
         from transformers import pipeline as hf_pipe
         print(f"⏳ Loading HuggingFace model: {HF_MODEL_NAME} ...")
@@ -122,19 +141,22 @@ async def _load_models():
             truncation=True,
             max_length=512,
         )
-        print(f"✅ HuggingFace RoBERTa pipeline loaded successfully")
+        print("✅ HuggingFace RoBERTa pipeline loaded successfully")
     except Exception as e:
         print(f"❌ Error loading HuggingFace pipeline: {e}")
+        hf_pipeline = None
+    return hf_pipeline
 
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
 def _run_hf_inference(text: str) -> dict:
     """Run HuggingFace RoBERTa on text, return standardised result dict."""
-    if not hf_pipeline:
+    pipe = _get_hf_pipeline()
+    if not pipe:
         raise RuntimeError("HuggingFace pipeline not loaded")
 
-    raw = hf_pipeline(text)[0]   # list of {label, score}
+    raw = pipe(text)[0]   # list of {label, score}
     prob_dict = {}
     for item in raw:
         mapped = HF_LABEL_MAP.get(item["label"].lower(), item["label"].capitalize())
@@ -255,6 +277,8 @@ async def health():
             },
             "huggingface_roberta": {
                 "loaded": hf_pipeline is not None,
+                "lazy": not EAGER_LOAD_HF,
+                "note": None if hf_pipeline is not None else "Loads on first request",
                 "description": HF_MODEL_NAME,
             },
         },
@@ -353,7 +377,7 @@ async def analyze_hf(file: UploadFile = File(...)):
     Analyze sentiment using HuggingFace twitter-roberta-base-sentiment-latest.
     For video/audio: transcribes speech then classifies transcript.
     """
-    if not hf_pipeline:
+    if not _get_hf_pipeline():
         raise HTTPException(status_code=503, detail="HuggingFace pipeline not loaded")
 
     vid_path = audio_wav_path = None
@@ -412,7 +436,7 @@ async def analyze_text(
 
     # ── HuggingFace path ─────────────────────────────────────────────────────
     if model_engine == "hf":
-        if not hf_pipeline:
+        if not _get_hf_pipeline():
             raise HTTPException(status_code=503, detail="HuggingFace pipeline not loaded")
         try:
             result = _run_hf_inference(text)
