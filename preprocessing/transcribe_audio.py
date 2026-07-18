@@ -28,6 +28,11 @@ WHISPER_MODEL_SIZE = os.environ.get("WHISPER_MODEL", "small")
 WHISPER_DEVICE = os.environ.get("WHISPER_DEVICE", "cpu")
 WHISPER_COMPUTE_TYPE = os.environ.get("WHISPER_COMPUTE_TYPE", "int8")
 WHISPER_BEAM_SIZE = int(os.environ.get("WHISPER_BEAM_SIZE", "1"))
+# 0 lets CTranslate2 pick; default to the machine's cores (capped at 8) for
+# much faster CPU decoding than the library's conservative default of 4.
+WHISPER_CPU_THREADS = int(
+    os.environ.get("WHISPER_CPU_THREADS", str(min(8, os.cpu_count() or 4)))
+)
 
 # Whisper's language codes → human-readable names (from the Whisper tokenizer).
 LANGUAGE_NAMES = {
@@ -82,6 +87,7 @@ def _get_whisper_model():
                 WHISPER_MODEL_SIZE,
                 device=WHISPER_DEVICE,
                 compute_type=WHISPER_COMPUTE_TYPE,
+                cpu_threads=WHISPER_CPU_THREADS,
             )
             logger.info("Whisper model loaded.")
         except Exception:
@@ -93,16 +99,34 @@ def _get_whisper_model():
     return _whisper_model
 
 
+# Serialize Whisper passes: two concurrent CPU transcriptions thrash the
+# cores and both crawl; queueing them is strictly faster overall.
+_transcribe_lock = threading.Lock()
+
+
 def _run_whisper(model, audio_path, task, language=None):
     """Run one Whisper pass and return (joined_text, info)."""
-    segments, info = model.transcribe(
-        audio_path,
-        task=task,
-        language=language,
-        beam_size=WHISPER_BEAM_SIZE,
-        vad_filter=True,  # skip silence: faster + avoids hallucinated text
-    )
-    text = " ".join(seg.text.strip() for seg in segments).strip()
+    with _transcribe_lock:
+        segments, info = model.transcribe(
+            audio_path,
+            task=task,
+            language=language,
+            beam_size=WHISPER_BEAM_SIZE,
+            vad_filter=True,  # skip silence: faster + avoids hallucinated text
+            # Big CPU speed-ups with negligible quality cost for sentiment use:
+            # not conditioning on previous text prevents the slow repetition
+            # loops Whisper falls into on non-English speech, and skipping
+            # timestamp tokens shrinks the decode length.
+            condition_on_previous_text=False,
+            without_timestamps=True,
+            # Single decode per chunk. The default temperature ladder retries
+            # low-confidence chunks up to 6x, which makes noisy real-world
+            # recordings take 5-10x longer on CPU for marginal quality gain.
+            temperature=0.0,
+        )
+        # segments is a lazy generator — the actual decoding happens here,
+        # so the join must stay inside the lock.
+        text = " ".join(seg.text.strip() for seg in segments).strip()
     return text, info
 
 
