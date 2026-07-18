@@ -35,6 +35,10 @@ export interface Analysis {
       text: { emotion: string; score: number };
     };
     transcript?: string;
+    /** Detected spoken language, e.g. "Marathi" */
+    languageName?: string;
+    /** English translation of a non-English transcript */
+    translation?: string;
   };
 }
 
@@ -111,8 +115,11 @@ export default function App() {
 
       if (type === 'text') {
         const textContent = fileData as string;
-        const endpoint = `${API_URL}/api/analyze-text?text=${encodeURIComponent(textContent)}&model_engine=${engine}`;
-        response = await fetch(endpoint, { method: 'POST' });
+        response = await fetch(`${API_URL}/api/analyze-text`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: textContent, model_engine: engine }),
+        });
       } else {
         const formData = new FormData();
         formData.append('file', fileData as File);
@@ -146,6 +153,8 @@ export default function App() {
           confidence: result.confidence,
           ...(result.probabilities && { probabilities: result.probabilities as Record<string, number> }),
           ...(result.transcript && result.transcript !== 'No speech detected' && { transcript: result.transcript as string }),
+          ...(result.language_name && { languageName: result.language_name as string }),
+          ...(result.translation && { translation: result.translation as string }),
           emotions: {
             video: { emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral', score: result.breakdown.video },
             audio: { emotion: emotions[Math.floor(Math.random() * emotions.length)] ?? 'Neutral', score: result.breakdown.audio },
@@ -161,9 +170,12 @@ export default function App() {
       console.error('Analysis error:', error);
       const raw = error instanceof Error ? error.message : 'Unknown error';
       const isNetworkError = raw.toLowerCase().includes('fetch') || raw.toLowerCase().includes('failed to fetch') || raw.toLowerCase().includes('networkerror');
+      const isLocalBackend = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
       setErrorMessage(
         isNetworkError
-          ? 'Cannot reach the backend server. Make sure it is running on port 8000 (run run_backend.ps1) and try again.'
+          ? isLocalBackend
+            ? 'Cannot reach the backend server. Make sure it is running on port 8000 (run run_backend.ps1) and try again.'
+            : 'Cannot reach the analysis server. It may be waking up from sleep — please wait ~30 seconds and try again.'
           : raw
       );
       setCurrentAnalysis(prev => prev ? { ...prev, status: 'failed', currentStep: 4 } : null);
@@ -181,7 +193,8 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const isNetworkErrorMsg = errorMessage?.includes('backend server');
+  const isNetworkErrorMsg = errorMessage?.includes('backend server') || errorMessage?.includes('analysis server');
+  const showLocalRunHint = errorMessage?.includes('run_backend.ps1');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 text-white relative overflow-hidden">
@@ -280,7 +293,7 @@ export default function App() {
                   <p className={`text-sm mt-1 leading-relaxed ${isNetworkErrorMsg ? 'text-orange-400/90' : 'text-red-400/90'}`}>
                     {errorMessage}
                   </p>
-                  {isNetworkErrorMsg && (
+                  {showLocalRunHint && (
                     <code className="block mt-2 text-xs bg-black/30 rounded-lg px-3 py-2 text-orange-200 font-mono">
                       .\\run_backend.ps1
                     </code>

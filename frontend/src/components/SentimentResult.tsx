@@ -14,6 +14,8 @@ interface SentimentResultProps {
       text: { emotion: string; score: number };
     };
     transcript?: string;
+    languageName?: string;
+    translation?: string;
   };
   engine?: ModelEngine;
 }
@@ -38,6 +40,8 @@ export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
       `Confidence: ${(sentiment.confidence * 100).toFixed(1)}%`,
       `Engine    : ${engineLabel}`,
       sentiment.transcript ? `Transcript: ${sentiment.transcript}` : null,
+      sentiment.languageName ? `Language  : ${sentiment.languageName}` : null,
+      sentiment.translation ? `Translation (EN): ${sentiment.translation}` : null,
       '',
       '--- Modality Breakdown ---',
       `Video : ${(sentiment.emotions.video.score * 100).toFixed(1)}% (${sentiment.emotions.video.emotion})`,
@@ -155,8 +159,13 @@ export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
             className="mb-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4"
           >
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-base sm:text-lg text-white flex items-center gap-2">
+              <h4 className="font-semibold text-base sm:text-lg text-white flex items-center gap-2 flex-wrap">
                 <span>💬</span> Extracted Transcript
+                {sentiment.languageName && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                    🌐 {sentiment.languageName}
+                  </span>
+                )}
               </h4>
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -172,6 +181,16 @@ export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
             <div className="bg-black/30 rounded-lg p-4 text-sm sm:text-base text-gray-200 leading-relaxed italic border border-white/10">
               "{sentiment.transcript}"
             </div>
+            {sentiment.translation && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-gray-400 mb-1.5 flex items-center gap-1.5">
+                  <span>🔁</span> English Translation (used for sentiment analysis)
+                </p>
+                <div className="bg-black/20 rounded-lg p-3 text-sm text-gray-300 leading-relaxed border border-white/10">
+                  "{sentiment.translation}"
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -312,6 +331,7 @@ export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
                   <p><strong className="text-gray-300">Architecture:</strong> RoBERTa (Robustly Optimized BERT)</p>
                   <p><strong className="text-gray-300">Training Data:</strong> ~124M tweets</p>
                   <p><strong className="text-gray-300">Approach:</strong> Text classification via transcribed speech</p>
+                  <p><strong className="text-gray-300">Speech-to-Text:</strong> Whisper (multilingual, auto language detection)</p>
                 </>
               ) : (
                 <>
@@ -320,7 +340,11 @@ export function SentimentResult({ sentiment, engine }: SentimentResultProps) {
                   <p><strong className="text-gray-300">Architecture:</strong> ResNet18 (Video) + MFCC (Audio) + DistilBERT (Text)</p>
                   <p><strong className="text-gray-300">Training Data:</strong> CMU-MOSI Dataset (400 clips)</p>
                   <p><strong className="text-gray-300">Audio Sample Rate:</strong> 16 kHz</p>
+                  <p><strong className="text-gray-300">Speech-to-Text:</strong> Whisper (multilingual, auto language detection)</p>
                 </>
+              )}
+              {sentiment.languageName && (
+                <p><strong className="text-gray-300">Detected Language:</strong> {sentiment.languageName}</p>
               )}
               {sentiment.transcript && (
                 <p><strong className="text-gray-300">Transcript Length:</strong> {sentiment.transcript.split(' ').length} words</p>

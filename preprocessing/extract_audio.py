@@ -1,81 +1,98 @@
 # preprocessing/extract_audio.py
-from moviepy.editor import VideoFileClip
+"""
+Audio extraction / conversion via ffmpeg.
+
+Converts any video or audio container to 16 kHz mono WAV — the format every
+downstream consumer (Whisper, MFCC/librosa) expects. Uses the system ffmpeg
+when available, otherwise the binary bundled with imageio-ffmpeg.
+"""
+
+import logging
 import os
-import traceback # For more detailed error printing
+import shutil
+import subprocess
+
+logger = logging.getLogger(__name__)
+
+FFMPEG_TIMEOUT_SECONDS = 300  # hard cap so a corrupt file can't hang a worker
+
+
+def get_ffmpeg_exe():
+    """Return a usable ffmpeg executable path, or None if none is available."""
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        logger.error("No ffmpeg found on PATH and imageio-ffmpeg is not installed.")
+        return None
+
+
+def convert_to_wav(input_path, output_path, sample_rate=16000):
+    """
+    Convert any audio/video file to mono WAV at the given sample rate.
+    Returns True on success, False on failure.
+    """
+    if not os.path.exists(input_path):
+        logger.error("Input file not found: '%s'", input_path)
+        return False
+
+    ffmpeg = get_ffmpeg_exe()
+    if not ffmpeg:
+        return False
+
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    cmd = [
+        ffmpeg, "-y",
+        "-i", input_path,
+        "-vn",                      # drop video stream
+        "-acodec", "pcm_s16le",
+        "-ar", str(sample_rate),
+        "-ac", "1",
+        output_path,
+    ]
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, timeout=FFMPEG_TIMEOUT_SECONDS
+        )
+        if proc.returncode != 0:
+            stderr_tail = proc.stderr.decode(errors="replace")[-500:]
+            logger.error("ffmpeg failed for '%s': %s", input_path, stderr_tail)
+            return False
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            logger.error("ffmpeg produced no output for '%s' (no audio track?)", input_path)
+            return False
+        return True
+    except subprocess.TimeoutExpired:
+        logger.error("ffmpeg timed out after %ss for '%s'", FFMPEG_TIMEOUT_SECONDS, input_path)
+        return False
+    except Exception:
+        logger.exception("Unexpected error running ffmpeg for '%s'", input_path)
+        return False
+
 
 def extract_audio(video_input_path, audio_output_path):
     """
-    Extracts audio from a video file and saves it.
-    Returns True on success, False on failure.
+    Extract the audio track from a video file as 16 kHz mono WAV.
+    Returns True on success, False on failure. (Kept for backward compatibility;
+    convert_to_wav handles audio inputs too.)
     """
-    try:
-        # --- Create the output directory if it doesn't exist ---
-        output_dir = os.path.dirname(audio_output_path)
-        if output_dir and not os.path.exists(output_dir): # Check if output_dir is not empty
-            print(f"Creating directory: {output_dir}")
-            os.makedirs(output_dir, exist_ok=True)
-        # --- End of directory creation ---
-
-        if not os.path.exists(video_input_path):
-            print(f"Error: Video input file not found at '{video_input_path}'")
-            return False
-
-        print(f"Extracting audio from '{video_input_path}' to '{audio_output_path}'")
-        video_clip = VideoFileClip(video_input_path)
-        
-        if video_clip.audio is None:
-            print(f"Error: No audio track found in video '{video_input_path}'.")
-            video_clip.close()
-            return False
-            
-        # Use logger=None to prevent FFMPEG from printing to stdout/stderr directly
-        # unless you are debugging FFMPEG itself.
-        video_clip.audio.write_audiofile(audio_output_path, logger=None) 
-        
-        video_clip.close() # Release resources explicitly
-        if hasattr(video_clip, 'reader') and video_clip.reader: video_clip.reader.close()
-        if hasattr(video_clip, 'audio') and hasattr(video_clip.audio, 'reader') and video_clip.audio.reader: video_clip.audio.reader.close_proc()
+    return convert_to_wav(video_input_path, audio_output_path)
 
 
-        print(f"Audio successfully extracted to '{audio_output_path}'")
-        return True
-
-    except Exception as e:
-        print(f"Error during audio extraction for {video_input_path}: {e}")
-        print(traceback.format_exc()) # Print full traceback for the exception
-        # Try to close resources even if an error occurred
-        if 'video_clip' in locals():
-            video_clip.close()
-            if hasattr(video_clip, 'reader') and video_clip.reader: video_clip.reader.close()
-            if hasattr(video_clip, 'audio') and hasattr(video_clip.audio, 'reader') and video_clip.audio.reader: video_clip.audio.reader.close_proc()
-        return False
-
-# --- Guard any direct execution / test code ---
-# If line 24 in your original file was part of a direct test call,
-# it should be moved into this block.
-if __name__ == '__main__':
-    print("Running extract_audio.py as a script (for testing purposes).")
-    
-    # Example: Define paths for a test case
-    # You should have a sample video in 'data/test_videos/' for this test to run.
-    test_video_input_dir = "data/raw_video_clips" # Make sure this directory exists for testing
-    test_video_filename = "sample_video.mp4" # Put a sample video here
-    test_video_path = os.path.join(test_video_input_dir, test_video_filename)
-
-    test_audio_output_dir = "data/processed_audio" # Test output directory
-    test_audio_filename = "sample_audio.wav"
-    test_audio_output_path = os.path.join(test_audio_output_dir, test_audio_filename)
-
-    # Create test video directory if it doesn't exist for the example
-    if not os.path.exists(test_video_input_dir):
-        os.makedirs(test_video_input_dir)
-        print(f"Created test directory {test_video_input_dir}. Please add {test_video_filename} for testing.")
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    test_video_path = os.path.join("data", "raw_video_clips", "sample_video.mp4")
+    test_audio_output_path = os.path.join("data", "processed_audio", "sample_audio.wav")
 
     if os.path.exists(test_video_path):
-        print(f"\n--- Test: Attempting to extract audio from '{test_video_path}' ---")
-        if extract_audio(test_video_path, test_audio_output_path):
-            print("--- Test: Audio extraction successful ---")
-        else:
-            print("--- Test: Audio extraction failed ---")
+        print(f"--- Test: extracting audio from '{test_video_path}' ---")
+        ok = extract_audio(test_video_path, test_audio_output_path)
+        print("--- Test:", "success ---" if ok else "failed ---")
     else:
-        print(f"\n--- Test: Skipping test, video file '{test_video_path}' not found. ---")
+        print(f"--- Test skipped: '{test_video_path}' not found ---")

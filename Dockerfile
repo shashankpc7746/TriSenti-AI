@@ -9,12 +9,15 @@
 # It also works on any other container host (Render, Railway, Fly, local):
 # the server binds to ${PORT:-7860}.
 #
+# All ML models (Whisper, RoBERTa, DistilBERT, ResNet18) are downloaded at
+# BUILD time, so container startup never waits on model downloads.
+#
 # Build:  docker build -t trisenti-api .
 # Run:    docker run -p 7860:7860 -e CORS_ALLOW_ORIGINS="https://your-frontend" trisenti-api
 # ─────────────────────────────────────────────────────────────────────────────
 FROM python:3.10-slim
 
-# System deps: ffmpeg for moviepy/audio conversion; libgl/libglib for opencv.
+# System deps: ffmpeg for audio extraction/conversion; libgl/libglib for opencv.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         libgl1 \
@@ -28,8 +31,10 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HOME=/home/appuser \
     HF_HOME=/home/appuser/.cache/huggingface \
+    TORCH_HOME=/home/appuser/.cache/torch \
     PYTHONPATH=/app \
-    PORT=7860
+    PORT=7860 \
+    WHISPER_MODEL=small
 
 WORKDIR /app
 
@@ -40,12 +45,16 @@ RUN pip install --upgrade pip && \
     pip install --extra-index-url https://download.pytorch.org/whl/cpu \
         -r requirements-backend.txt
 
+# Bake all ML models into the image (own layer: only re-runs when the prefetch
+# script or requirements change, not on every code change).
+COPY --chown=appuser:appuser api/prefetch_models.py ./api/prefetch_models.py
+USER appuser
+RUN python api/prefetch_models.py
+
 # Copy only what the backend needs at runtime.
 COPY --chown=appuser:appuser api/ ./api/
 COPY --chown=appuser:appuser preprocessing/ ./preprocessing/
 COPY --chown=appuser:appuser models/ ./models/
-
-USER appuser
 
 EXPOSE 7860
 

@@ -1,32 +1,59 @@
+import logging
 import os
-import torch
 import pickle
-from transformers import DistilBertTokenizer, DistilBertModel
+import threading
+
+import torch
 from tqdm import tqdm
 
-# Paths
+logger = logging.getLogger(__name__)
+
+# Paths (dataset batch mode)
 TEXT_FOLDER = 'data/mini_dataset/segmented_transcripts'
 OUTPUT_PATH = 'data/mini_dataset/mini_text_features.pkl'
 
-# Load DistilBERT model and tokenizer
-tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-model = DistilBertModel.from_pretrained('distilbert-base-uncased')
-model.eval()
-
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.to(device)
+
+_tokenizer = None
+_model = None
+_model_lock = threading.Lock()
+
+
+def _get_model():
+    """Lazy-load DistilBERT once (thread-safe) so importing this module
+    stays cheap for the API process."""
+    global _tokenizer, _model
+    if _model is not None:
+        return _tokenizer, _model
+    with _model_lock:
+        if _model is not None:
+            return _tokenizer, _model
+        from transformers import DistilBertModel, DistilBertTokenizer
+        logger.info("Loading DistilBERT for text feature extraction...")
+        _tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        model.eval()
+        model.to(device)
+        _model = model
+        logger.info("DistilBERT loaded.")
+    return _tokenizer, _model
+
 
 def extract_text_features(text):
-    # Tokenize the input text
-    inputs = tokenizer(text, return_tensors='pt', truncation=True, padding=True, max_length=512).to(device)
+    """Return a 768-dim mean-pooled DistilBERT embedding for the text."""
+    tokenizer, model = _get_model()
 
-    # Get embeddings from DistilBERT
+    inputs = tokenizer(
+        text, return_tensors='pt', truncation=True, padding=True, max_length=512
+    ).to(device)
+
     with torch.no_grad():
         outputs = model(**inputs)
-        embeddings = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()  # Mean pooling over tokens
+        embeddings = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
 
     return embeddings
+
 
 def main():
     text_feature_dict = {}
@@ -50,6 +77,7 @@ def main():
 
     print(f"\n✅ Extracted text features for {len(text_feature_dict)} clips.")
     print(f"🔸 Saved to: {OUTPUT_PATH}")
+
 
 if __name__ == '__main__':
     main()

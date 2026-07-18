@@ -19,9 +19,12 @@ transformers==4.51.3
 torch==2.7.0                 # CPU build; see Dockerfile for the CPU index URL
 torchvision==0.22.0
 
+# ── Speech-to-text (multilingual) ──────────────────────────────────────────
+faster-whisper==1.1.1        # Whisper via CTranslate2: 99 languages, CPU int8
+SpeechRecognition==3.10.0    # English-only fallback if Whisper is unavailable
+
 # ── Media / feature extraction ─────────────────────────────────────────────
 opencv-python-headless==4.7.0.72   # headless: no GUI libs needed in a container
-moviepy==1.0.3
 librosa==0.10.0.post2
-SpeechRecognition==3.10.0
+imageio-ffmpeg==0.5.1        # bundled ffmpeg binary fallback (local dev)
 tqdm==4.67.1

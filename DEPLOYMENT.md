@@ -145,12 +145,16 @@ VITE_API_URL=https://<user>-<space>.hf.space
 
 - **Backend env vars** (HF Space → Settings → Variables and secrets):
   - `CORS_ALLOW_ORIGINS` — comma-separated allowed origins (your Vercel URL).
-  - `EAGER_LOAD_HF` — optional; `1` loads RoBERTa at startup instead of warming
-    it in the background.
+  - `EAGER_LOAD_HF` — optional; `1` loads RoBERTa/Whisper at startup instead of
+    warming them in the background.
+  - `WHISPER_MODEL` — optional; Whisper size (`tiny`/`base`/`small`/`medium`,
+    default `small`). Bigger = more accurate, slower on CPU.
 - **First request after idle**: free Spaces sleep when unused; the next request
-  wakes the container (a few seconds) plus the RoBERTa warm-up. Then it's fast.
-- **Transcription needs internet**: video/audio transcription uses Google Speech
-  Recognition, reached over the Space's outbound network.
+  wakes the container (a few seconds) plus the model warm-up. Then it's fast.
+- **Transcription runs fully inside the container**: speech-to-text uses
+  faster-whisper (multilingual, auto language detection). All models are baked
+  into the Docker image at build time — no runtime downloads. Tune with the
+  `WHISPER_MODEL` env var (`tiny`/`base`/`small`/`medium`, default `small`).
 - **Model size**: artifacts are ~4 MB total, tracked via git-LFS in the Space
   (Hugging Face requires LFS for binary files like `.h5`/`.pkl`). The deploy
   workflow handles this automatically.

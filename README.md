@@ -15,7 +15,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-success" />
+  <img src="https://img.shields.io/badge/version-1.1.0-success" />
+  <img src="https://img.shields.io/badge/Whisper-99_languages-8A2BE2" />
   <img src="https://img.shields.io/badge/Python-3.10-blue?logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white" />
   <img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
@@ -63,8 +64,19 @@ TriSenti AI is an end-to-end **multimodal sentiment analysis platform** that pre
 | 🎵 **Audio** | Acoustic features from the audio track | MFCC |
 | 📝 **Text** | Meaning from (transcribed) speech | DistilBERT / RoBERTa |
 
-For video & audio, speech is auto-transcribed, features from each modality are
-**fused** (early fusion), and a dense network produces the final prediction.
+For video & audio, speech is auto-transcribed with **Whisper**, features from each
+modality are **fused** (early fusion), and a dense network produces the final prediction.
+
+### 🌍 Multilingual speech (new in v1.1)
+
+Speech-to-text now runs on **Whisper (faster-whisper)** with automatic language
+detection across **99 languages** — Hindi, Marathi, Tamil, Telugu, Spanish,
+Japanese, and more. Upload a video in any language and TriSenti will:
+
+1. **Detect** the spoken language (e.g. `Marathi · 92%`)
+2. **Transcribe** it natively (e.g. `मला हा चित्रपट खूप आवडला...`)
+3. **Translate** it to English (shown in the UI)
+4. **Analyze sentiment** on the English text with your chosen engine
 
 ---
 
@@ -85,7 +97,8 @@ Pick your engine before analyzing — the result is badged with the one that pro
 - 🎵 **Audio analysis** — MP3, WAV, M4A, OGG, FLAC
 - 📝 **Text analysis** — type or paste directly
 - 🔀 **Dual-engine selector** — RoBERTa or the custom fusion model
-- 💬 **Auto transcription** — speech-to-text via Google Speech Recognition
+- 🌍 **Multilingual transcription** — Whisper auto-detects 99 languages and translates to English
+- 💬 **Auto transcription** — native transcript + detected language + translation shown in the UI
 - 📊 **Modality breakdown** — see video / audio / text contributions
 - 🏷️ **Engine badge** — every result shows which model produced it
 - 📋 **Session history** — revisit past analyses
@@ -114,7 +127,8 @@ Pick your engine before analyzing — the result is badged with the one that pro
 | **Frontend** | React 18 · TypeScript · Vite · Tailwind · Framer Motion |
 | **Backend** | FastAPI · Uvicorn · Python 3.10 |
 | **ML** | TensorFlow 2.11 · PyTorch · HuggingFace Transformers · scikit-learn · librosa · OpenCV |
-| **Media** | FFmpeg · MoviePy · SpeechRecognition |
+| **Speech** | faster-whisper (Whisper · CTranslate2) — multilingual STT + translation |
+| **Media** | FFmpeg |
 | **Deploy** | Vercel (frontend) · Hugging Face Spaces / Docker (backend) · GitHub Actions (CI) |
 
 ---
@@ -140,7 +154,7 @@ TriSenti-AI/
 │   ├── extract_all_audio_features.py   # MFCC
 │   ├── extract_all_video_features.py   # ResNet18
 │   ├── extract_all_text_features.py    # DistilBERT
-│   └── transcribe_audio.py             # Google Speech Recognition
+│   └── transcribe_audio.py             # Whisper multilingual STT + translation
 │
 ├── models/                         # Trained artifacts (.h5 + scalers + encoder)
 ├── training/
@@ -230,23 +244,30 @@ curl -X POST -F "file=@audio.wav" http://localhost:8000/api/analyze-hf
 
 ### `POST /api/analyze-text` — text, either engine
 ```bash
-curl -X POST "http://localhost:8000/api/analyze-text?text=I+love+this&model_engine=hf"
-curl -X POST "http://localhost:8000/api/analyze-text?text=I+love+this&model_engine=custom"
+curl -X POST http://localhost:8000/api/analyze-text \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I love this", "model_engine": "hf"}'
 ```
+(Legacy `?text=...&model_engine=...` query parameters are still accepted.)
 
-### `GET /api/health` — model load status
+### `GET /api/health` — model load status (custom model, RoBERTa, Whisper)
 
 <details>
-<summary><strong>Sample response</strong></summary>
+<summary><strong>Sample response (Marathi video, RoBERTa engine)</strong></summary>
 
 ```json
 {
   "success": true,
   "sentiment": "Positive",
-  "confidence": 0.978,
-  "transcript": "I love this project so much!",
+  "confidence": 0.974,
+  "transcript": "मला हा चित्रपट खूप आवडला तो अप्रतिम होता",
+  "language": "mr",
+  "language_name": "Marathi",
+  "language_probability": 0.92,
+  "translation": "I loved this movie a lot. It was amazing.",
+  "transcription_engine": "whisper",
   "engine": "huggingface",
-  "probabilities": { "Positive": 0.978, "Negative": 0.011, "Neutral": 0.011 },
+  "probabilities": { "Positive": 0.974, "Negative": 0.006, "Neutral": 0.020 },
   "breakdown": { "video": 0.0, "audio": 0.33, "text": 0.67 }
 }
 ```
@@ -314,7 +335,8 @@ HF Space + Vercel + GitHub-secrets setup, CORS wiring, and a manual fallback.
 | Backend won't start locally | Ensure `.pkl` + `.h5` files exist in `models/` |
 | Frontend can't connect | Backend running on `:8000`? Check `VITE_API_URL` and CORS |
 | CORS error in console | Add your frontend origin to the Space's `CORS_ALLOW_ORIGINS` |
-| Transcription fails | Needs internet (Google Speech Recognition) |
+| Transcription slow on long videos | Whisper runs on CPU; try shorter clips or set `WHISPER_MODEL=base` for speed |
+| Wrong language detected | Rare on clear speech; noisy/short clips reduce detection confidence |
 | `npm run dev` not found | Install Node.js from [nodejs.org](https://nodejs.org) |
 
 ---
@@ -324,5 +346,5 @@ HF Space + Vercel + GitHub-secrets setup, CORS wiring, and a manual fallback.
 **Shashank Gupta** — [@shashankpc7746](https://github.com/shashankpc7746)
 
 <p align="center">
-  <sub>Built with ❤️ using Python, React, TensorFlow &amp; HuggingFace Transformers · v1.0.0</sub>
+  <sub>Built with ❤️ using Python, React, TensorFlow &amp; HuggingFace Transformers · v1.1.0</sub>
 </p>

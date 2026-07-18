@@ -48,7 +48,7 @@ npm run dev
 - `api/main.py` — FastAPI server with **three** endpoints:
   - `POST /api/analyze` — Custom fusion model (video + audio + text)
   - `POST /api/analyze-hf` — HuggingFace RoBERTa (transcribe → classify)
-  - `POST /api/analyze-text?model_engine=custom|hf` — Text-only, both engines
+  - `POST /api/analyze-text` — Text-only, both engines (JSON body)
 - Loads two models on startup: TensorFlow custom model + HuggingFace pipeline
 - CORS enabled for React frontend
 
@@ -63,7 +63,8 @@ npm run dev
 When you upload content:
 
 1. **Choose your engine** — Custom Model or HuggingFace RoBERTa
-2. **Real transcription** from actual audio (Google Speech Recognition)
+2. **Real transcription** from actual audio (Whisper — multilingual, auto
+   language detection, with English translation for non-English speech)
 3. **Real sentiment prediction** with confidence scores
 4. **Engine badge** showing which model produced the result
 5. **Multimodal breakdown** showing video/audio/text contributions
@@ -83,6 +84,11 @@ Analyzes video/audio files
   "sentiment": "Positive",
   "confidence": 0.89,
   "transcript": "Hello everyone! I'm excited to share...",
+  "language": "en",
+  "language_name": "English",
+  "language_probability": 0.97,
+  "translation": null,
+  "transcription_engine": "whisper",
   "probabilities": {
     "Positive": 0.89,
     "Negative": 0.05,
@@ -107,7 +113,8 @@ Analyzes video/audio using HuggingFace RoBERTa (transcribes then classifies).
 
 Analyzes text input with either engine.
 
-**Query Params**: `text=<text>` and `model_engine=custom|hf`  
+**Body (JSON)**: `{"text": "...", "model_engine": "custom"|"hf"}`
+(legacy query params `?text=...&model_engine=...` still accepted)
 **Response**: Same format
 
 ## ✅ Dependencies Installed
@@ -134,7 +141,7 @@ python-multipart==0.0.20
 
 **Transcription not working?**
 
-- Requires active internet connection (Google Speech Recognition API)
+- Whisper runs locally — no internet needed after the model downloads once
 - Audio must have clear speech
 - Video must have audio track
 
